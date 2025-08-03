@@ -10,7 +10,10 @@ class UserCRUD:
         get_users,
         create_user,
         update_user,
-        authenticate_user
+        authenticate_user,
+        generate_password_reset_token,
+        verify_password_reset_token,
+        reset_password
     )
 
 # Export the user submodule

@@ -43,3 +43,21 @@ class User(UserInDBBase):
 # Properties stored in DB
 class UserInDB(UserInDBBase):
     hashed_password: str
+
+
+# Password reset request schema
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+# Password reset token response schema
+class PasswordResetToken(BaseModel):
+    email: EmailStr
+    reset_token: str
+    expires_at: datetime
+
+
+# Password reset schema
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)

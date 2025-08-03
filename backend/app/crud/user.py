@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
+import secrets
+from datetime import datetime, timedelta
 
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
@@ -63,4 +65,75 @@ def authenticate_user(db: Session, username_or_email: str, password: str) -> Opt
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    return user
+
+
+def generate_password_reset_token(db: Session, email: str) -> Optional[Dict[str, Any]]:
+    """Generate a password reset token for a user."""
+    user = get_user_by_email(db, email=email)
+    if not user:
+        return None
+    
+    # Generate a secure random token
+    reset_token = secrets.token_urlsafe(32)
+    # Token expires in 24 hours
+    expires_at = datetime.utcnow() + timedelta(hours=24)
+    
+    # Store token and expiry in the user record
+    # Note: We're assuming we'll add these fields to the User model
+    setattr(user, "reset_token", reset_token)
+    setattr(user, "reset_token_expires_at", expires_at)
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "email": user.email,
+        "reset_token": reset_token,
+        "expires_at": expires_at
+    }
+
+
+def verify_password_reset_token(db: Session, token: str) -> Optional[User]:
+    """Verify a password reset token and return the user if valid."""
+    # Find user with the given token
+    user = db.query(User).filter(User.reset_token == token).first()
+    
+    if not user:
+        return None
+    
+    # Check if token has expired
+    # Make both datetimes timezone-aware or timezone-naive
+    now = datetime.utcnow()
+    if user.reset_token_expires_at and user.reset_token_expires_at.tzinfo:
+        # If stored datetime is timezone-aware, make 'now' timezone-aware too
+        from datetime import timezone
+        now = now.replace(tzinfo=timezone.utc)
+        
+    if not user.reset_token_expires_at or user.reset_token_expires_at < now:
+        return None
+    
+    return user
+
+
+def reset_password(db: Session, token: str, new_password: str) -> Optional[User]:
+    """Reset a user's password using a valid token."""
+    user = verify_password_reset_token(db, token)
+    
+    if not user:
+        return None
+    
+    # Update password
+    hashed_password = get_password_hash(new_password)
+    setattr(user, "hashed_password", hashed_password)
+    
+    # Clear the reset token and expiry
+    setattr(user, "reset_token", None)
+    setattr(user, "reset_token_expires_at", None)
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
     return user
