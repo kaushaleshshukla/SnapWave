@@ -8,6 +8,7 @@ from app import crud
 from app.core import security
 from app.core.config import settings
 from app.db.session import get_db
+from app.api.v1.deps import get_current_user
 from app.schemas import token, user
 
 router = APIRouter()
@@ -37,7 +38,7 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/register", response_model=user.User)
+@router.post("/register", response_model=dict)
 async def register_user(
     user_in: user.UserCreate,
     db: Session = Depends(get_db)
@@ -62,7 +63,18 @@ async def register_user(
         )
     
     # Create new user
-    return crud.user.create_user(db=db, user_in=user_in)
+    new_user = crud.user.create_user(db=db, user_in=user_in)
+    
+    # Generate verification token
+    verification_data = crud.user.generate_email_verification_token(db, user_id=new_user.id)
+    
+    # Here you would typically send the verification email
+    # For development, we'll just return user with debug token
+    return {
+        "user": new_user,
+        "message": "User registered successfully. Please verify your email.",
+        "debug_token": verification_data["verification_token"] if verification_data else None
+    }
 
 
 @router.post("/password-reset/request", response_model=dict)
@@ -121,3 +133,47 @@ async def reset_password(
         )
     
     return {"message": "Password has been reset successfully"}
+
+
+@router.post("/verify-email/request", response_model=dict)
+async def request_email_verification(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Request a new email verification token
+    """
+    if current_user.email_verified:
+        return {"message": "Email already verified"}
+    
+    verification_data = crud.user.generate_email_verification_token(db, user_id=current_user.id)
+    if not verification_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not generate verification token"
+        )
+    
+    # Here you would typically send an email with the verification link
+    # For now, we'll just return the token (in a real app, never return the token directly)
+    return {
+        "message": "Verification link has been sent to your email.",
+        "debug_token": verification_data["verification_token"]  # Only for development, remove in production
+    }
+
+
+@router.get("/verify-email/{token}", response_model=dict)
+async def verify_email(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Verify email with token
+    """
+    user_obj = crud.user.verify_email(db, token=token)
+    if not user_obj:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+    
+    return {"message": "Email verified successfully"}

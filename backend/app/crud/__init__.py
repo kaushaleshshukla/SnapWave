@@ -13,7 +13,9 @@ class UserCRUD:
         authenticate_user,
         generate_password_reset_token,
         verify_password_reset_token,
-        reset_password
+        reset_password,
+        generate_email_verification_token,
+        verify_email
     )
 
 # Export the user submodule

@@ -137,3 +137,59 @@ def reset_password(db: Session, token: str, new_password: str) -> Optional[User]
     db.refresh(user)
     
     return user
+
+
+def generate_email_verification_token(db: Session, user_id: int) -> Optional[Dict[str, Any]]:
+    """Generate an email verification token for a user."""
+    user = get_user_by_id(db, user_id=user_id)
+    if not user:
+        return None
+    
+    # Generate a secure random token
+    verification_token = secrets.token_urlsafe(32)
+    # Token expires in 72 hours
+    expires_at = datetime.utcnow() + timedelta(hours=72)
+    
+    # Store token and expiry in the user record
+    setattr(user, "verification_token", verification_token)
+    setattr(user, "verification_token_expires_at", expires_at)
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "email": user.email,
+        "verification_token": verification_token,
+        "expires_at": expires_at
+    }
+
+
+def verify_email(db: Session, token: str) -> Optional[User]:
+    """Verify a user's email using a verification token."""
+    # Find user with the given token
+    user = db.query(User).filter(User.verification_token == token).first()
+    
+    if not user:
+        return None
+    
+    # Check if token has expired
+    now = datetime.utcnow()
+    if user.verification_token_expires_at and user.verification_token_expires_at.tzinfo:
+        # If stored datetime is timezone-aware, make 'now' timezone-aware too
+        from datetime import timezone
+        now = now.replace(tzinfo=timezone.utc)
+        
+    if not user.verification_token_expires_at or user.verification_token_expires_at < now:
+        return None
+    
+    # Mark email as verified and clear the verification token
+    setattr(user, "email_verified", True)
+    setattr(user, "verification_token", None)
+    setattr(user, "verification_token_expires_at", None)
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return user

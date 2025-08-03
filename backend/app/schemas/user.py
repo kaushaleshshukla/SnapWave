@@ -37,7 +37,7 @@ class UserInDBBase(UserBase):
 
 # Properties to return to client
 class User(UserInDBBase):
-    pass
+    email_verified: Optional[bool] = False
 
 
 # Properties stored in DB
@@ -61,3 +61,15 @@ class PasswordResetToken(BaseModel):
 class PasswordReset(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8)
+
+
+# Email verification token schema
+class EmailVerificationToken(BaseModel):
+    email: EmailStr
+    verification_token: str
+    expires_at: datetime
+
+
+# Email verification schema
+class EmailVerification(BaseModel):
+    token: str

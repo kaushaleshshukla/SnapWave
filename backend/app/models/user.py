@@ -18,5 +18,8 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     reset_token = Column(String, nullable=True, index=True)
     reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    email_verified = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True, index=True)
+    verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
