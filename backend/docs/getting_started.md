@@ -47,6 +47,19 @@ With the virtual environment activated, install the required dependencies:
 pip install -r requirements.txt
 ```
 
+The project uses the following key dependencies:
+
+- **FastAPI**: Modern, high-performance web framework
+- **SQLAlchemy**: SQL toolkit and ORM
+- **Pydantic**: Data validation and settings management
+- **Alembic**: Database migration tool
+- **FastAPI-Mail**: Email sending capability
+- **MinIO Client**: S3-compatible object storage
+- **Pillow**: Image processing library
+- **Pytest**: Testing framework
+
+See `requirements.txt` for the complete list with versions.
+
 ### 4. Configure Environment Variables
 
 Create a `.env` file in the backend directory:
