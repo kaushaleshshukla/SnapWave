@@ -4,11 +4,11 @@ python -m venv venv
 case $(uname | tr '[:upper:]' '[:lower:]') in
   linux*|darwin*)
     # Script for Linux/macOS
-    $PWD/venv/bin/activate.bat
+    source $PWD/venv/bin/activate
     ;;
   msys*|mingw*)
     # Script for Windows (using Git Bash/Cygwin)
-    source $PWD/venv/bin/activate
+    $PWD/venv/bin/activate.bat
     ;;
   *)
     echo "Unknown OS, cannot execute script"
