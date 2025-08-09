@@ -26,6 +26,4 @@ pillow==10.0.0  # For image processing
 pytest==7.4.0
 pytest-asyncio==0.21.1
 httpx==0.24.1
-
-# Production
 gunicorn==21.2.0
