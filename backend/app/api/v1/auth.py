@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Optional
 
 from app import crud
-from app.core import security
+from app.core import security, email
 from app.core.config import settings
 from app.db.session import get_db
 from app.api.v1.deps import get_current_user
@@ -41,6 +41,7 @@ async def login_for_access_token(
 @router.post("/register", response_model=dict)
 async def register_user(
     user_in: user.UserCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -68,35 +69,57 @@ async def register_user(
     # Generate verification token
     verification_data = crud.user.generate_email_verification_token(db, user_id=new_user.id)
     
-    # Here you would typically send the verification email
-    # For development, we'll just return user with debug token
-    return {
+    # Send verification email in background
+    if verification_data:
+        background_tasks.add_task(
+            email.send_verification_email,
+            email_to=verification_data["email"],
+            username=new_user.username,
+            token=verification_data["verification_token"]
+        )
+    
+    response = {
         "user": new_user,
-        "message": "User registered successfully. Please verify your email.",
-        "debug_token": verification_data["verification_token"] if verification_data else None
+        "message": "User registered successfully. Please verify your email."
     }
+    
+    # For development environment, include the token in response
+    if settings.PROJECT_NAME == "SnapWave" and verification_data:  # Check if dev environment
+        response["debug_token"] = verification_data["verification_token"]
+    
+    return response
 
 
 @router.post("/password-reset/request", response_model=dict)
 async def request_password_reset(
     reset_request: user.PasswordResetRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
     Request a password reset token
     """
-    reset_data = crud.user.generate_password_reset_token(db, email=reset_request.email)
-    if not reset_data:
-        # We don't want to reveal if an email exists or not for security reasons,
-        # so we return a success message regardless
-        return {"message": "If your email is registered, you will receive a password reset link shortly."}
+    # Always return the same message regardless of whether the email exists
+    # This is a security measure to prevent email enumeration attacks
+    message = {"message": "If your email is registered, you will receive a password reset link shortly."}
     
-    # Here you would typically send an email with the reset link
-    # For now, we'll just return the token (in a real app, never return the token directly)
-    return {
-        "message": "Password reset link has been sent to your email.",
-        "debug_token": reset_data["reset_token"]  # Only for development, remove in production
-    }
+    reset_data = crud.user.generate_password_reset_token(db, email=reset_request.email)
+    if reset_data:
+        user_obj = crud.user.get_user_by_email(db, email=reset_request.email)
+        
+        # Send email with reset token in background
+        background_tasks.add_task(
+            email.send_password_reset_email,
+            email_to=reset_data["email"],
+            username=user_obj.username,
+            token=reset_data["reset_token"]
+        )
+        
+        # For development environment, include the token in response
+        if settings.PROJECT_NAME == "SnapWave":  # Check if dev environment
+            message["debug_token"] = reset_data["reset_token"]
+    
+    return message
 
 
 @router.post("/password-reset/verify", response_model=dict)
@@ -137,6 +160,7 @@ async def reset_password(
 
 @router.post("/verify-email/request", response_model=dict)
 async def request_email_verification(
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -153,12 +177,21 @@ async def request_email_verification(
             detail="Could not generate verification token"
         )
     
-    # Here you would typically send an email with the verification link
-    # For now, we'll just return the token (in a real app, never return the token directly)
-    return {
-        "message": "Verification link has been sent to your email.",
-        "debug_token": verification_data["verification_token"]  # Only for development, remove in production
-    }
+    # Send verification email in background
+    background_tasks.add_task(
+        email.send_verification_email,
+        email_to=verification_data["email"],
+        username=current_user.username,
+        token=verification_data["verification_token"]
+    )
+    
+    message = {"message": "Verification link has been sent to your email."}
+    
+    # For development environment, include the token in response
+    if settings.PROJECT_NAME == "SnapWave":  # Check if dev environment
+        message["debug_token"] = verification_data["verification_token"]
+    
+    return message
 
 
 @router.get("/verify-email/{token}", response_model=dict)
