@@ -47,6 +47,13 @@ With the virtual environment activated, install the required dependencies:
 pip install -r requirements.txt
 ```
 
+If you encounter dependency conflicts during installation, try:
+
+```bash
+pip install -r requirements.txt --no-dependencies
+pip install -r requirements.txt
+```
+
 The project uses the following key dependencies:
 
 - **FastAPI**: Modern, high-performance web framework
