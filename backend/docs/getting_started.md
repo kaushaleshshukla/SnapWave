@@ -7,6 +7,7 @@ This guide will walk you through the process of setting up and running the SnapW
 - Python 3.8 or higher
 - PostgreSQL database
 - Git (for cloning the repository)
+- MinIO (optional, for media storage)
 
 ## Setting Up the Development Environment
 
@@ -88,7 +89,31 @@ STORAGE_BUCKET_NAME=snapwave
 STORAGE_USE_HTTPS=False
 ```
 
-### 5. Set Up the Database
+### 5. Start the PostgreSQL Database Server
+
+Ensure your PostgreSQL server is running before continuing:
+
+#### macOS
+```bash
+# Start PostgreSQL server on macOS (if installed with Homebrew)
+brew services start postgresql
+# or
+pg_ctl -D /usr/local/var/postgres start
+```
+
+#### Linux (Ubuntu/Debian)
+```bash
+# Start PostgreSQL server on Linux
+sudo service postgresql start
+# or
+sudo systemctl start postgresql
+```
+
+#### Windows
+On Windows, PostgreSQL typically runs as a service that starts automatically.
+You can check the service status in the Services application.
+
+### 6. Set Up the Database
 
 Create a PostgreSQL database for the application:
 
@@ -117,7 +142,16 @@ alembic upgrade head
 
 ### Development Server
 
-For development with auto-reload:
+First, ensure all required services are running:
+
+1. **PostgreSQL** database server (as described in previous steps)
+2. **MinIO** (if you're working with media uploads):
+   ```bash
+   # If installed with Docker
+   docker run -p 9000:9000 -p 9001:9001 -e "MINIO_ROOT_USER=minioaccess" -e "MINIO_ROOT_PASSWORD=miniosecret" minio/minio server /data --console-address ":9001"
+   ```
+
+Then start the FastAPI server with auto-reload:
 
 ```bash
 # Make sure your virtual environment is activated
@@ -133,7 +167,11 @@ This will start the server at http://127.0.0.1:8000.
 Alternatively, you can use the built-in script:
 
 ```bash
-python app/main.py
+# Make the script executable first (if needed)
+chmod +x start_server.py
+
+# Run the script
+./start_server.py
 ```
 
 ### Production Server
@@ -141,8 +179,14 @@ python app/main.py
 For production deployment:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Without auto-reload and with production workers
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Or using Gunicorn with Uvicorn workers (recommended for production)
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
 ```
+
+Make sure all required services (PostgreSQL, MinIO/S3) are properly configured and running in your production environment.
 
 ## Accessing the API
 
@@ -209,9 +253,10 @@ When running in development mode (`EMAIL_DEV_MODE=True`), emails will be logged 
 ### Common Issues
 
 1. **Database connection errors**:
-   - Check that PostgreSQL is running
+   - Check that PostgreSQL is running (`pg_isready` command will tell you)
    - Verify the DATABASE_URL in your .env file
    - Ensure the database and user exist with proper permissions
+   - Try connecting with `psql` to rule out network/authentication issues
 
 2. **Import errors when starting the server**:
    - Ensure you're in the correct directory (backend/)
