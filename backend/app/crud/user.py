@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
@@ -77,7 +77,7 @@ def generate_password_reset_token(db: Session, email: str) -> Optional[Dict[str,
     # Generate a secure random token
     reset_token = secrets.token_urlsafe(32)
     # Token expires in 24 hours
-    expires_at = datetime.now(datetime.timezone.utc) + timedelta(hours=24)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     
     # Store token and expiry in the user record
     # Note: We're assuming we'll add these fields to the User model
@@ -105,7 +105,7 @@ def verify_password_reset_token(db: Session, token: str) -> Optional[User]:
     
     # Check if token has expired
     # Make both datetimes timezone-aware or timezone-naive
-    now = datetime.now(datetime.timezone.utc)
+    now = datetime.now(timezone.utc)
     if user.reset_token_expires_at and user.reset_token_expires_at.tzinfo:
         # If stored datetime is timezone-aware, make 'now' timezone-aware too
         from datetime import timezone
@@ -148,7 +148,7 @@ def generate_email_verification_token(db: Session, user_id: int) -> Optional[Dic
     # Generate a secure random token
     verification_token = secrets.token_urlsafe(32)
     # Token expires in 72 hours
-    expires_at = datetime.now(datetime.timezone.utc) + timedelta(hours=72)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=72)
     
     # Store token and expiry in the user record
     setattr(user, "verification_token", verification_token)
@@ -174,7 +174,7 @@ def verify_email(db: Session, token: str) -> Optional[User]:
         return None
     
     # Check if token has expired
-    now = datetime.now(datetime.timezone.utc)
+    now = datetime.now(timezone.utc)
     if user.verification_token_expires_at and user.verification_token_expires_at.tzinfo:
         # If stored datetime is timezone-aware, make 'now' timezone-aware too
         from datetime import timezone

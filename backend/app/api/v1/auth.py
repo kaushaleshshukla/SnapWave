@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.api.v1.deps import get_current_user
 from app.schemas import token, user
+from app.schemas.user import User
 
 router = APIRouter()
 
@@ -79,7 +80,7 @@ async def register_user(
         )
     
     response = {
-        "user": new_user,
+        "user": User.model_validate( new_user),
         "message": "User registered successfully. Please verify your email."
     }
     
