@@ -176,8 +176,6 @@ def verify_email(db: Session, token: str) -> Optional[User]:
     # Check if token has expired
     now = datetime.now(timezone.utc)
     if user.verification_token_expires_at and user.verification_token_expires_at.tzinfo:
-        # If stored datetime is timezone-aware, make 'now' timezone-aware too
-        from datetime import timezone
         now = now.replace(tzinfo=timezone.utc)
         
     if not user.verification_token_expires_at or user.verification_token_expires_at < now:

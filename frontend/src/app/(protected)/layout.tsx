@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Providers } from '../providers';
 
 export default function ProtectedLayout({
   children,
@@ -31,5 +30,5 @@ export default function ProtectedLayout({
     return null; // Will redirect in the useEffect
   }
   
-  return <Providers>{children}</Providers>;
+  return <>{children}</>;
 }
